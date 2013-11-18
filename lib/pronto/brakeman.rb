@@ -3,11 +3,8 @@ require 'brakeman'
 
 module Pronto
   class Brakeman < Runner
-    def run(patches, _)
+    def run
       return [] unless patches
-
-      ruby_patches = patches.select { |patch| patch.additions > 0 }
-                            .select { |patch| ruby_file?(patch.new_file_full_path) }
 
       files = ruby_patches.map { |patch| patch.new_file_full_path.to_s }
 
@@ -15,15 +12,15 @@ module Pronto
         output = ::Brakeman.run(app_path: '.',
                                 output_formats: [:to_s],
                                 only_files: files)
-        messages_for(ruby_patches, output).compact
+        messages_for(output).compact
       else
         []
       end
     end
 
-    def messages_for(ruby_patches, output)
+    def messages_for(output)
       output.checks.all_warnings.map do |warning|
-        patch = patch_for_warning(ruby_patches, warning)
+        patch = patch_for_warning(warning)
 
         if patch
           line = patch.added_lines.find do |added_line|
@@ -40,7 +37,7 @@ module Pronto
                   "Possible security vulnerability: #{warning.message}")
     end
 
-    def patch_for_warning(ruby_patches, warning)
+    def patch_for_warning(warning)
       ruby_patches.find do |patch|
         patch.new_file_full_path.to_s == warning.file
       end
